@@ -1,7 +1,5 @@
 requests
 
 telepot
-nltk
 
-cobe
-pyStemmer
+chatterbot

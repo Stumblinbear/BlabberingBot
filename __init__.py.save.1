@@ -1,0 +1,62 @@
+import time
+import asyncio
+
+import telepot
+from telepot.aio.loop import MessageLoop
+from telepot.aio.delegate import per_chat_id, create_open, pave_event_space
+
+from chatterbot import ChatBot
+from chatterbot.trainers import ChatterBotCorpusTrainer, ListTrainer
+
+
+
+bot = ChatBot(
+    'Birden',
+    storage_adapter='chatterbot.storage.SQLStorageAdapter', 
+#    logic_adapters=[
+#        'chatterbot.logic.BestMatch'
+#    ]
+)
+
+bot.set_trainer(ChatterBotCorpusTrainer)
+with open('log.txt', 'r') as f:
+	bot.train(f.readlines())
+
+bot.train("chatterbot.corpus.english")
+
+log = open('log.txt', 'a')
+
+class ChatHandler(telepot.aio.helper.ChatHandler):
+	def __init__(self, *args, **kwargs):
+		super(ChatHandler, self).__init__(*args, **kwargs)
+
+		self.conv_id = bot.storage.create_conversation()
+
+	async def on_chat_message(self, msg):
+		if 'text' not in msg or 'username' not in msg['from']:
+			return
+
+		log.write(msg['text'])
+
+		reply = (msg['chat']['type'] == 'private')
+
+		if msg['date'] + 10 < time.time():
+			reply = False
+
+		response = str(bot.get_response(msg['text'], self.conv_id))
+
+		if reply:
+			await tbot.sendChatAction(msg['chat']['id'], 'typing')
+			await asyncio.sleep(len(response) * .08)
+			await self.sender.sendMessage(response)
+
+tbot = telepot.aio.DelegatorBot('284668264:AAG_nlxgILhFZiB_IwwjwgCph6xn5bjwZnU', [
+	pave_event_space()(
+		per_chat_id(), create_open, ChatHandler, timeout=20
+	)
+])
+
+loop = asyncio.get_event_loop() 
+loop.create_task(MessageLoop(tbot).run_forever())
+print('Listening...')
+loop.run_forever()
